@@ -128,7 +128,15 @@ var p = Text.prototype = new createjs.DisplayObject();
 	 * @type Number
 	 **/
 	p.lineWidth = null;
-	
+
+    /**
+     * Indicates if a word with a width greater than lineWidth should be clipped to avoid overflow.
+     * If false the word will overflow.
+     * @property lineWidthForce
+     * @type Boolean
+     **/
+	p.lineWidthForced = false;
+
 // constructor:
 	/**
 	 * @property DisplayObject_initialize
@@ -301,22 +309,41 @@ var p = Text.prototype = new createjs.DisplayObject();
 			// split up the line
 			var words = lines[i].split(/(\s)/);
 			var str = words[0];
-			for (var j=1, jl=words.length; j<jl; j+=2) {
-				// Line needs to wrap:
-				if (ctx.measureText(str + words[j] + words[j+1]).width > this.lineWidth) {
+            var str_temp = str[0];
+			for (var j=0, jl=words.length; j<jl; j+=2) {
+				// Line needs to wrap
+
+                // First check for hard wrap
+                if (this.lineWidthForced && ctx.measureText(str).width > this.lineWidth) {
+                    for (var k = 0; k < str.length-1; k++) {
+                        if (ctx.measureText(str_temp + str[k+1]).width > this.lineWidth) {
+                            if (paint) { this._drawTextLine(ctx, str_temp, count*lineHeight); }
+                            count++;
+                            str_temp = str[k+1];
+                        } else {
+                            str_temp += str[k+1];
+                        }
+                    }
+                    str = str_temp;
+                }
+
+                var wj1 = words[j+1] || '';
+                var wj2 = words[j+2] || '';
+
+				if (ctx.measureText(str + wj1 + wj2).width > this.lineWidth) {
 					if (paint) { this._drawTextLine(ctx, str, count*lineHeight); }
 					count++;
-					str = words[j+1];
+					str = wj2;
 				} else {
-					str += words[j] + words[j+1];
+					str += wj1 + wj2;
 				}
 			}
-			if (paint) { this._drawTextLine(ctx, str, count*lineHeight); } // Draw remaining text
-			count++;
-		}
+            if (paint) { this._drawTextLine(ctx, str, count*lineHeight); }
+            count++;
+        }
 		return count;
 	}
-	
+
 	/** 
 	 * @method _drawTextLine
 	 * @param {CanvasRenderingContext2D} ctx
